@@ -1,0 +1,69 @@
+#问卷编制：题总相关、EFA、EGA、CFA、信度检验
+library(DataExplorer)
+library(bruceR)
+library(EGAnet)                                                                 #探索性图论分析
+library(semPlot)                                                                #绘制CFA路径图
+bruceR::set.wd()                                                                #工作路径
+
+#导入数据
+df <- bruceR::import("cig.xlsx")
+
+
+#探索性可视化DataExplorer，快速了解数据特点
+DataExplorer::plot_intro(data = df)                                             #总览
+DataExplorer::plot_missing(data = df)                                           #查看是否有缺失值
+
+
+#项目分析
+df <- as.data.table(df)
+df_sum <- bruceR::add(data = df,
+                    expr ={sum_score = .sum("i",1:24)} 
+)
+bruceR::Corr(df_sum)
+
+
+#探索性因素分析
+#正交旋转
+bruceR::EFA(
+  data = df,
+  "i",1:24,                                                                     #使用var+items的方式写变量                                                         
+  method = "pca",
+  rotation = "varimax",
+  nfactors = "eigen"
+)
+
+#斜交旋转
+bruceR::EFA(
+  data = df,
+  "i",1:24,                                                                                                                             
+  method = "pca",
+  rotation = "oblimin",
+  nfactors = "eigen"
+)
+
+#逐个删题，重新EFA
+df2 <- select(df,!cc("i7,i9,i10,i11,i19,i20"))
+
+bruceR::EFA(
+  data = df2,
+  vars = cc("i1,i2,i3,i4,i5,i6,i8,i13,i14,i15,i16,i17,i18,i21,i22,i23,i24"),
+  method = "pca",
+  rotation = "oblimin",
+  nfactors = "eigen"
+)
+
+
+#探索性图论分析，用来估计因子数量，作为EFA的补充
+EGA_df <- EGAnet::EGA(data = df2,model = "glasso")
+
+
+#验证性因素分析
+bruceR::CFA(
+  data = df,
+  model = "LS =~ LS[1:4];JT =~ JT[1:4];PY =~ PY[1:4]",                          #定义要验证的模型,=~定义潜变量
+  estimator = "ML"
+) %>%
+  semPlot::semPaths(what = "std")                                               #CFA结果传给下面绘制路径图
+
+#信度检验
+bruceR::Alpha(data = df2,vars = cc("i1,i2,i3,i5,i6,i7,i8,i10,i12,i13,i14,i15,i16,i17,i18,i19,i20,i21,i22,i23,i24"))
